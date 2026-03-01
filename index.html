@@ -2,110 +2,94 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manual Mobil - Split View Fixed</title>
+    <title>Aplikasi Perbaikan Mobil Offline</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; overflow: hidden; flex-direction: row; background: #2c3e50; }
-        
-        /* SIDEBAR */
-        #sidebar { width: 320px; background: #fff; border-right: 2px solid #34495e; display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; z-index: 10; }
-        #search-input { width: 100%; padding: 12px; border: 2px solid #3498db; border-radius: 5px; font-size: 16px; margin-bottom: 10px; }
-        #results { flex-grow: 1; overflow-y: auto; }
-        #status { font-size: 11px; margin-bottom: 10px; color: #7f8c8d; }
-
-        /* VIEWER (KANAN) */
-        #viewer-container { flex-grow: 1; position: relative; background: #525659; }
+        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
+        #sidebar { width: 300px; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; }
+        #viewer-container { flex-grow: 1; background: #444; }
+        input { width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; }
+        .result-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; cursor: pointer; border-radius: 4px; }
+        .result-item:hover { background: #f0f7ff; }
         iframe { width: 100%; height: 100%; border: none; }
-
-        /* HASIL PENCARIAN */
-        .result-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: 0.2s; border-left: 4px solid transparent; }
-        .result-item:hover { background: #ecf0f1; border-left: 4px solid #3498db; }
-        .result-item h4 { margin: 0; color: #2980b9; font-size: 16px; }
-        .result-item p { margin: 5px 0 0 0; font-size: 12px; color: #34495e; line-height: 1.4; }
-        mark { background: #f1c40f; color: black; font-weight: bold; padding: 0 2px; }
-
-        /* Tampilan HP (Atas-Bawah) */
-        @media (max-width: 768px) {
-            body { flex-direction: column; }
-            #sidebar { width: 100%; height: 45%; border-right: none; border-bottom: 3px solid #34495e; }
-            #viewer-container { height: 55%; }
-        }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h3 style="margin:0; color:#2c3e50;">🔍 Cari Solusi</h3>
-    <p id="status">Memuat data...</p>
-    <input type="text" id="search-input" placeholder="Ketik gejala mobil...">
-    <div id="results"></div>
+    <h3>Pencarian Gejala</h3>
+    <input type="text" id="search-input" placeholder="Contoh: rem, radiator...">
+    <div id="results">Memuat data...</div>
 </div>
 
 <div id="viewer-container">
-    <iframe id="pdf-viewer" src=""></iframe>
+    <iframe id="pdf-viewer" src="manual_mobil.pdf"></iframe>
 </div>
 
 <script>
-    let fuse;
-    const viewer = document.getElementById('pdf-viewer');
-    const resultsDiv = document.getElementById('results');
-    const searchInput = document.getElementById('search-input');
-    const status = document.getElementById('status');
+    // 3. GUNAKAN DOMContentLoaded AGAR SCRIPT JALAN SETELAH HTML SIAP
+    document.addEventListener('DOMContentLoaded', function() {
+        let fuse;
+        const searchInput = document.getElementById('search-input');
+        const resultsDiv = document.getElementById('results');
+        const pdfViewer = document.getElementById('pdf-viewer');
 
-    // 1. Load Data JSON
-    fetch('data_perbaikan.json')
-        .then(res => res.json())
-        .then(data => {
-            fuse = new Fuse(data, { keys: ['konten'], threshold: 0.35 });
-            status.innerHTML = "✅ Database Siap (" + data.length + " data)";
-            // Tampilan Awal Halaman 1
-            loadPDFPage(1, "");
-        })
-        .catch(e => {
-            status.innerHTML = "❌ Gagal muat data!";
-            console.error(e);
-        });
+        console.log("Memulai pemuatan data...");
 
-    // 2. Fungsi Utama Ganti Halaman PDF
-    function loadPDFPage(halaman, kataKunci) {
-        // Ambil URL PDF di GitHub Anda
-        const pdfUrl = window.location.href.split('index.html')[0] + 'manual_mobil.pdf';
-        
-        // Gunakan PDF.js Viewer dari CDN untuk navigasi internal yang stabil
-        // Parameter: file (lokasi pdf), page (halaman), search (highlight)
-        const viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}#page=${halaman}&search=${encodeURIComponent(kataKunci)}`;
-        
-        // Update iframe
-        viewer.src = viewerUrl;
-    }
+        fetch('data_perbaikan.json')
+            .then(res => res.json())
+            .then(data => {
+                console.log("Data berhasil dimuat. Jumlah:", data.length);
+                
+                // Cek apakah Fuse sudah ter-load dari internet/lokal
+                if (typeof Fuse === 'undefined') {
+                    resultsDiv.innerHTML = "<b style='color:red'>Library Fuse.js tidak ditemukan! Cek koneksi internet atau link script.</b>";
+                    return;
+                }
 
-    // 3. Logika Input Pencarian
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value;
-        if (query.length < 2) { resultsDiv.innerHTML = ''; return; }
+                fuse = new Fuse(data, {
+                    keys: ['konten'],
+                    threshold: 0.3
+                });
+                resultsDiv.innerHTML = "<small style='color:green'>Sistem siap digunakan.</small>";
+            })
+            .catch(err => {
+                console.error("Error fetch:", err);
+                resultsDiv.innerHTML = "Gagal memuat JSON.";
+            });
 
-        const found = fuse.search(query);
-        resultsDiv.innerHTML = '';
-
-        found.slice(0, 15).forEach(res => {
-            const item = res.item;
-            const div = document.createElement('div');
-            div.className = 'result-item';
+        searchInput.addEventListener('input', () => {
+            if (!fuse) return;
+            const query = searchInput.value;
+            const results = fuse.search(query);
             
-            // Mewarnai teks di sidebar
-            const regex = new RegExp(`(${query})`, 'gi');
-            const snippet = item.konten.substring(0, 90).replace(regex, '<mark>$1</mark>');
+            resultsDiv.innerHTML = '';
+            results.forEach(res => {
+                const item = res.item;
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `<strong>Hal ${item.halaman}</strong><br><small>${item.konten.substring(0, 60)}...</small>`;
+                
+                div.onclick = () => {
+                    cconst targetHalaman = item.halaman;
+    const offset = item.koordinat_y || 0;
+    
+    // Alamat tujuan lengkap
+    const targetUrl = `manual_mobil.pdf#page=${targetHalaman}&view=FitH,${offset}`;
+    
+    console.log("Mengarahkan ke:", targetUrl);
 
-            div.innerHTML = `<h4>Hal ${item.halaman}</h4><p>${snippet}...</p>`;
-            
-            div.onclick = () => {
-                console.log("Membuka Hal:", item.halaman, "Kata:", query);
-                loadPDFPage(item.halaman, query);
-            };
-            resultsDiv.appendChild(div);
-        });
-    });
+    // Trik agar browser mau refresh iframe:
+    // Kita kosongkan dulu src-nya, lalu isi kembali dalam waktu sangat singkat
+    pdfViewer.src = "about:blank"; 
+    
+    setTimeout(() => {
+        pdfViewer.src = targetUrl;
+    }, 10);
+
+    // Tambahan: Scroll otomatis ke bagian atas viewer agar user tahu PDF berubah
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 </script>
 
 </body>
