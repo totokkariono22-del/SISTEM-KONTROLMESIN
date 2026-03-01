@@ -2,7 +2,9 @@
 <html lang="id">
 <head>
     <link rel="manifest" href="manifest.json">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta charset="UTF-8">
     <title>Aplikasi Perbaikan Mobil Offline</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
@@ -13,7 +15,7 @@
         input { width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; }
         .result-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; cursor: pointer; border-radius: 4px; }
         .result-item:hover { background: #f0f7ff; }
-        iframe { width: 100%; height: 100%; border: none; }
+        <iframe id="pdf-viewer" src="https://mozilla.github.io/pdf.js/web/viewer.html?file=https://totokkariono22-del.github.io/SISTEM-KONTROLMESIN/"></iframe>
     </style>
 </head>
 <body>
@@ -87,7 +89,19 @@
     
     // Alamat tujuan lengkap
     const targetUrl = `manual_mobil.pdf#page=${targetHalaman}&view=FitH,${offset}`;
-    
+    // Cek apakah user pakai HP atau Laptop
+    if (window.innerWidth < 768) {
+        // Jika di HP, buka di tab baru langsung ke halamannya
+        window.open(urlLengkap, '_blank');
+    } else {
+        // Jika di Laptop, tetap tampilkan di iframe samping
+        const viewer = document.getElementById('pdf-viewer');
+        viewer.src = ""https://docs.google.com/viewer?url=https://totokkariono22-del.github.io/SISTEM-KONTROLMESIN/&embedded=true""; 
+        setTimeout(() => {
+            viewer.src = "https://totokkariono22-del.github.io/SISTEM-KONTROLMESIN/manual_mobil.pdf";
+        }, 10);
+    }
+};
     console.log("Mengarahkan & mencari kata:", targetUrl);
 
     // Trik agar browser mau refresh iframe:
