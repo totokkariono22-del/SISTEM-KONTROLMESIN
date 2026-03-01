@@ -89,14 +89,19 @@
             
             // 3. Fungsi Buka PDF (Paling Aman untuk Android)
             div.onclick = () => {
-                // Link langsung ke file PDF dengan parameter halaman
-                const pdfUrl = `manual_mobil.pdf#page=${item.halaman}`;
-                window.open(pdfUrl, '_blank');
-            };
-            
-            resultsDiv.appendChild(div);
-        });
-    });
+               const targetHalaman = item.halaman;
+    
+    // 1. Ambil URL lengkap file PDF Anda di GitHub
+    // Contoh: https://nama-user.github.io/manual-mobil/manual_mobil.pdf
+    const urlAsli = window.location.href.replace('index.html', '') + 'manual_mobil.pdf';
+    
+    // 2. Gunakan Jembatan Google Docs Viewer
+    // Ini akan memaksa PDF terbuka di dalam viewer Google yang mendukung navigasi
+    const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(urlAsli)}&embedded=true#page=${targetHalaman}`;
+    
+    // 3. Buka di tab baru
+    window.open(googleViewer, '_blank');
+};
 </script>
 
 </body>
