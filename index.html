@@ -6,30 +6,31 @@
     <title>Manual Mobil Digital</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background: #f4f7f6; color: #333; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .search-box { position: sticky; top: 10px; z-index: 100; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 15px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; outline: none; box-sizing: border-box; }
-        input:focus { border-color: #2196f3; }
-        #status-info { font-size: 12px; margin-top: 8px; text-align: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 15px; background: #f0f2f5; color: #1c1e21; }
+        .header { text-align: center; padding: 10px 0; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
+        .search-container { position: sticky; top: 10px; z-index: 1000; background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 16px; font-size: 16px; border: 2px solid #ccd0d5; border-radius: 8px; outline: none; box-sizing: border-box; transition: 0.3s; }
+        input:focus { border-color: #1877f2; box-shadow: 0 0 0 2px #e7f3ff; }
+        #status-info { font-size: 13px; margin-top: 10px; text-align: center; font-weight: bold; }
         #results { margin-top: 20px; }
-        .result-item { background: white; padding: 18px; margin-bottom: 12px; border-radius: 10px; border-left: 6px solid #2196f3; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; -webkit-tap-highlight-color: transparent; }
-        .result-item:active { background: #e3f2fd; transform: scale(0.98); }
-        .result-item h4 { margin: 0 0 8px 0; color: #1976d2; font-size: 18px; }
-        .result-item p { margin: 0; font-size: 14px; line-height: 1.5; color: #666; }
-        mark { background: yellow; padding: 0 2px; border-radius: 2px; }
+        .result-item { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 12px; border-left: 8px solid #1877f2; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform 0.1s; }
+        .result-item:active { transform: scale(0.97); background: #f0f2f5; }
+        .result-item h4 { margin: 0 0 8px 0; color: #1877f2; font-size: 18px; }
+        .result-item p { margin: 0; font-size: 14px; line-height: 1.6; color: #4b4f56; }
+        mark { background: #ffeb3b; padding: 0 2px; border-radius: 3px; font-weight: bold; }
+        .footer-note { font-size: 11px; color: #8d949e; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2>🛠️ Asisten Bengkel</h2>
-    <p>Cari gejala atau komponen mobil</p>
+    <h2 style="margin:0;">🛠️ Bengkel Digital</h2>
+    <p style="margin:5px 0 0 0; font-size: 14px; color: #606770;">Database Perbaikan Mobil Offline</p>
 </div>
 
-<div class="search-box">
-    <input type="text" id="search-input" placeholder="Ketik gejala (misal: rem bunyi, radiator)...">
-    <div id="status-info">Sedang memuat database...</div>
+<div class="search-container">
+    <input type="text" id="search-input" placeholder="Cari gejala (misal: rem, asap, oli)..." autocomplete="off">
+    <div id="status-info">⏳ Memuat Database...</div>
 </div>
 
 <div id="results"></div>
@@ -40,25 +41,37 @@
     const resultsDiv = document.getElementById('results');
     const statusInfo = document.getElementById('status-info');
 
-    // 1. Ambil Data JSON
-    fetch('data_perbaikan.json')
-        .then(res => res.json())
-        .then(data => {
+    // 1. Fungsi Memuat Data JSON (Paling Stabil)
+    async function loadData() {
+        try {
+            // Mengambil lokasi relatif file agar aman di GitHub Pages
+            const response = await fetch('data_perbaikan.json');
+            if (!response.ok) throw new Error('File JSON tidak ditemukan!');
+            
+            const data = await response.json();
+            
+            // Inisialisasi Fuse.js
             fuse = new Fuse(data, {
                 keys: ['konten'],
-                threshold: 0.3,
+                threshold: 0.35, // Sensitivitas pencarian
                 minMatchCharLength: 2
             });
-            statusInfo.innerHTML = "✅ <span style='color:green'>Database Siap (3000+ Paragraf)</span>";
-        })
-        .catch(err => {
-            statusInfo.innerHTML = "❌ <span style='color:red'>Gagal memuat data!</span>";
-            console.error(err);
-        });
 
-    // 2. Fungsi Pencarian
+            statusInfo.innerHTML = `✅ <span style="color:green">Database Siap (${data.length} Data)</span>`;
+            console.log("Data Berhasil Dimuat");
+        } catch (error) {
+            console.error(error);
+            statusInfo.innerHTML = `❌ <span style="color:red">Gagal: Pastikan file JSON ada di GitHub!</span>`;
+        }
+    }
+
+    // Jalankan pemuatan data
+    loadData();
+
+    // 2. Logika Pencarian
     searchInput.addEventListener('input', () => {
         const query = searchInput.value;
+        
         if (!fuse || query.length < 2) {
             resultsDiv.innerHTML = '';
             return;
@@ -68,40 +81,36 @@
         resultsDiv.innerHTML = '';
 
         if (results.length === 0) {
-            resultsDiv.innerHTML = '<p style="text-align:center">Tidak ditemukan hasil.</p>';
+            resultsDiv.innerHTML = '<p style="text-align:center; color:#8d949e;">Data tidak ditemukan.</p>';
             return;
         }
 
-        results.slice(0, 20).forEach(res => { // Batasi 20 hasil agar tidak berat
+        // Tampilkan 15 hasil teratas saja agar HP tidak berat
+        results.slice(0, 15).forEach(res => {
             const item = res.item;
             const div = document.createElement('div');
             div.className = 'result-item';
             
-            // Highlight kata kunci di tampilan
+            // Highlight kata kunci agar mudah dibaca di HP
             const regex = new RegExp(`(${query})`, 'gi');
-            const teksPendek = item.konten.substring(0, 120).replace(regex, '<mark>$1</mark>');
+            const teksSnippet = item.konten.substring(0, 130).replace(regex, '<mark>$1</mark>');
             
             div.innerHTML = `
                 <h4>Halaman ${item.halaman}</h4>
-                <p>${teksPendek}...</p>
-                <div style="margin-top:10px; font-weight:bold; color:#2196f3; font-size:12px;">TAP UNTUK BUKA PDF ➜</div>
+                <p>${teksSnippet}...</p>
+                <div class="footer-note">TAP UNTUK BUKA PDF HALAMAN ${item.halaman} ➜</div>
             `;
             
-            // 3. Fungsi Buka PDF (Paling Aman untuk Android)
+            // 3. Fungsi Klik Buka PDF (Paling Stabil di Android)
             div.onclick = () => {
-               const targetHalaman = item.halaman;
-    
-    // 1. Ambil URL lengkap file PDF Anda di GitHub
-    // Contoh: https://nama-user.github.io/manual-mobil/manual_mobil.pdf
-    const urlAsli = window.location.href.replace('index.html', '') + 'manual_mobil.pdf';
-    
-    // 2. Gunakan Jembatan Google Docs Viewer
-    // Ini akan memaksa PDF terbuka di dalam viewer Google yang mendukung navigasi
-    const googleViewer = `https://docs.google.com/viewer?url=${encodeURIComponent(urlAsli)}&embedded=true#page=${targetHalaman}`;
-    
-    // 3. Buka di tab baru
-    window.open(googleViewer, '_blank');
-};
+                // Parameter #page bekerja di Google Chrome & Drive Viewer
+                const targetUrl = `manual_mobil.pdf#page=${item.halaman}`;
+                window.open(targetUrl, '_blank');
+            };
+            
+            resultsDiv.appendChild(div);
+        });
+    });
 </script>
 
 </body>
