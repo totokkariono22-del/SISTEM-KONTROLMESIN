@@ -2,112 +2,95 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Manual Mobil Digital</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bengkel Digital - Split View</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 15px; background: #f0f2f5; color: #1c1e21; }
-        .header { text-align: center; padding: 10px 0; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
-        .search-container { position: sticky; top: 10px; z-index: 1000; background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 16px; font-size: 16px; border: 2px solid #ccd0d5; border-radius: 8px; outline: none; box-sizing: border-box; transition: 0.3s; }
-        input:focus { border-color: #1877f2; box-shadow: 0 0 0 2px #e7f3ff; }
-        #status-info { font-size: 13px; margin-top: 10px; text-align: center; font-weight: bold; }
-        #results { margin-top: 20px; }
-        .result-item { background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 12px; border-left: 8px solid #1877f2; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform 0.1s; }
-        .result-item:active { transform: scale(0.97); background: #f0f2f5; }
-        .result-item h4 { margin: 0 0 8px 0; color: #1877f2; font-size: 18px; }
-        .result-item p { margin: 0; font-size: 14px; line-height: 1.6; color: #4b4f56; }
-        mark { background: #ffeb3b; padding: 0 2px; border-radius: 3px; font-weight: bold; }
-        .footer-note { font-size: 11px; color: #8d949e; margin-top: 10px; text-align: center; }
+        /* LAYOUT DASAR */
+        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; overflow: hidden; flex-direction: row; }
+        
+        /* SIDEBAR PENCARIAN */
+        #sidebar { width: 350px; background: #fff; border-right: 2px solid #ddd; display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }
+        #search-input { width: 100%; padding: 12px; border: 2px solid #2196f3; border-radius: 8px; font-size: 16px; margin-bottom: 10px; }
+        #results { flex-grow: 1; overflow-y: auto; }
+        
+        /* VIEWER PDF (KANAN) */
+        #viewer-container { flex-grow: 1; background: #525659; position: relative; }
+        iframe { width: 100%; height: 100%; border: none; }
+
+        /* ITEM HASIL PENCARIAN */
+        .result-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; border-radius: 8px; margin-bottom: 5px; background: #f9f9f9; }
+        .result-item:hover { background: #e3f2fd; }
+        .result-item h4 { margin: 0 0 5px 0; color: #1976d2; }
+        .result-item p { margin: 0; font-size: 13px; color: #666; }
+
+        /* RESPONSIVE UNTUK HP (Tampilan Atas-Bawah) */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar { width: 100%; height: 40%; border-right: none; border-bottom: 2px solid #ddd; }
+            #viewer-container { height: 60%; }
+        }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h2 style="margin:0;">🛠️ Bengkel Digital</h2>
-    <p style="margin:5px 0 0 0; font-size: 14px; color: #606770;">Database Perbaikan Mobil Offline</p>
+<div id="sidebar">
+    <h3 style="margin-top:0">🛠️ Cari Gejala</h3>
+    <input type="text" id="search-input" placeholder="Ketik rem, oli, mesin...">
+    <div id="status" style="font-size: 12px; color: gray; margin-bottom: 10px;">Memuat data...</div>
+    <div id="results"></div>
 </div>
 
-<div class="search-container">
-    <input type="text" id="search-input" placeholder="Cari gejala (misal: rem, asap, oli)..." autocomplete="off">
-    <div id="status-info">⏳ Memuat Database...</div>
+<div id="viewer-container">
+    <iframe id="pdf-viewer" src="about:blank"></iframe>
 </div>
-
-<div id="results"></div>
 
 <script>
     let fuse;
-    const searchInput = document.getElementById('search-input');
+    const viewer = document.getElementById('pdf-viewer');
     const resultsDiv = document.getElementById('results');
-    const statusInfo = document.getElementById('status-info');
+    const status = document.getElementById('status');
 
-    // 1. Fungsi Memuat Data JSON (Paling Stabil)
-    async function loadData() {
-        try {
-            // Mengambil lokasi relatif file agar aman di GitHub Pages
-            const response = await fetch('data_perbaikan.json');
-            if (!response.ok) throw new Error('File JSON tidak ditemukan!');
-            
-            const data = await response.json();
-            
-            // Inisialisasi Fuse.js
-            fuse = new Fuse(data, {
-                keys: ['konten'],
-                threshold: 0.35, // Sensitivitas pencarian
-                minMatchCharLength: 2
-            });
+    // 1. Load Data JSON
+    fetch('data_perbaikan.json')
+        .then(res => res.json())
+        .then(data => {
+            fuse = new Fuse(data, { keys: ['konten'], threshold: 0.3 });
+            status.innerHTML = "✅ Database Siap (" + data.length + " data)";
+            // Tampilkan halaman 1 sebagai default
+            updatePDF(1);
+        })
+        .catch(e => status.innerHTML = "❌ Gagal muat data!");
 
-            statusInfo.innerHTML = `✅ <span style="color:green">Database Siap (${data.length} Data)</span>`;
-            console.log("Data Berhasil Dimuat");
-        } catch (error) {
-            console.error(error);
-            statusInfo.innerHTML = `❌ <span style="color:red">Gagal: Pastikan file JSON ada di GitHub!</span>`;
-        }
+    // 2. Fungsi Update PDF (Trik khusus HP)
+    function updatePDF(halaman) {
+        // Ambil URL file PDF asli di GitHub Anda
+        const pdfUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1) + 'manual_mobil.pdf';
+        
+        // Gunakan Google Docs Viewer agar PDF muncul di dalam Iframe HP
+        const embedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true#page=${halaman}`;
+        
+        viewer.src = embedUrl;
     }
 
-    // Jalankan pemuatan data
-    loadData();
+    // 3. Logika Input
+    document.getElementById('search-input').addEventListener('input', (e) => {
+        const query = e.target.value;
+        if (query.length < 2) { resultsDiv.innerHTML = ''; return; }
 
-    // 2. Logika Pencarian
-    searchInput.addEventListener('input', () => {
-        const query = searchInput.value;
-        
-        if (!fuse || query.length < 2) {
-            resultsDiv.innerHTML = '';
-            return;
-        }
-
-        const results = fuse.search(query);
+        const found = fuse.search(query);
         resultsDiv.innerHTML = '';
 
-        if (results.length === 0) {
-            resultsDiv.innerHTML = '<p style="text-align:center; color:#8d949e;">Data tidak ditemukan.</p>';
-            return;
-        }
-
-        // Tampilkan 15 hasil teratas saja agar HP tidak berat
-        results.slice(0, 15).forEach(res => {
+        found.slice(0, 10).forEach(res => {
             const item = res.item;
             const div = document.createElement('div');
             div.className = 'result-item';
+            div.innerHTML = `<h4>Hal ${item.halaman}</h4><p>${item.konten.substring(0, 80)}...</p>`;
             
-            // Highlight kata kunci agar mudah dibaca di HP
-            const regex = new RegExp(`(${query})`, 'gi');
-            const teksSnippet = item.konten.substring(0, 130).replace(regex, '<mark>$1</mark>');
-            
-            div.innerHTML = `
-                <h4>Halaman ${item.halaman}</h4>
-                <p>${teksSnippet}...</p>
-                <div class="footer-note">TAP UNTUK BUKA PDF HALAMAN ${item.halaman} ➜</div>
-            `;
-            
-            // 3. Fungsi Klik Buka PDF (Paling Stabil di Android)
+            // Klik untuk ganti isi PDF di samping tanpa pindah halaman
             div.onclick = () => {
-                // Parameter #page bekerja di Google Chrome & Drive Viewer
-                const targetUrl = `manual_mobil.pdf#page=${item.halaman}`;
-                window.open(targetUrl, '_blank');
+                updatePDF(item.halaman);
             };
-            
             resultsDiv.appendChild(div);
         });
     });
