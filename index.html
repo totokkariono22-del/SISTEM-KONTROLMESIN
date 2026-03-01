@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>Aplikasi Perbaikan Mobil Offline</title>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
+        #sidebar { width: 300px; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; }
+        #viewer-container { flex-grow: 1; background: #444; }
+        input { width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; }
+        .result-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; cursor: pointer; border-radius: 4px; }
+        .result-item:hover { background: #f0f7ff; }
+        iframe { width: 100%; height: 100%; border: none; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h3>Pencarian Gejala</h3>
+    <input type="text" id="search-input" placeholder="Contoh: rem, radiator...">
+    <div id="results">Memuat data...</div>
+</div>
+
+<div id="viewer-container">
+    <iframe id="pdf-viewer" src="manual_mobil.pdf"></iframe>
+</div>
+
+<script>
+    // 3. GUNAKAN DOMContentLoaded AGAR SCRIPT JALAN SETELAH HTML SIAP
+    document.addEventListener('DOMContentLoaded', function() {
+        let fuse;
+        const searchInput = document.getElementById('search-input');
+        const resultsDiv = document.getElementById('results');
+        const pdfViewer = document.getElementById('pdf-viewer');
+
+        console.log("Memulai pemuatan data...");
+
+        fetch('data_perbaikan.json')
+            .then(res => res.json())
+            .then(data => {
+                console.log("Data berhasil dimuat. Jumlah:", data.length);
+                
+                // Cek apakah Fuse sudah ter-load dari internet/lokal
+                if (typeof Fuse === 'undefined') {
+                    resultsDiv.innerHTML = "<b style='color:red'>Library Fuse.js tidak ditemukan! Cek koneksi internet atau link script.</b>";
+                    return;
+                }
+
+                fuse = new Fuse(data, {
+                    keys: ['konten'],
+                    threshold: 0.3
+                });
+                resultsDiv.innerHTML = "<small style='color:green'>Sistem siap digunakan.</small>";
+            })
+            .catch(err => {
+                console.error("Error fetch:", err);
+                resultsDiv.innerHTML = "Gagal memuat JSON.";
+            });
+
+        searchInput.addEventListener('input', () => {
+            if (!fuse) return;
+            const query = searchInput.value;
+            const results = fuse.search(query);
+            
+            resultsDiv.innerHTML = '';
+            results.forEach(res => {
+                const item = res.item;
+                const query = searchInput.value;
+                const div = document.createElement('div');
+                div.className = 'result-item';
+
+                // Membuat fungsi untuk mewarnai teks di sidebar
+                const highlightedText = item.konten.substring(0, 100).replace(
+                    new RegExp(query, 'gi'), 
+                   (match) => `<mark style="background: yellow; font-weight: bold;">${match}</mark>`
+        );
+                div.innerHTML = `
+                    <strong>Hal ${item.halaman}</strong><br>
+                    <small>${highlightedText}...</small>
+                `;
+                div.onclick = () => {
+    const targetHalaman = item.halaman;
+    const offset = item.koordinat_y || 0;
+    
+    // Alamat tujuan lengkap
+    const targetUrl = `manual_mobil.pdf#page=${targetHalaman}&view=FitH,${offset}`;
+    
+    console.log("Mengarahkan & mencari kata:", targetUrl);
+
+    // Trik agar browser mau refresh iframe:
+    // Kita kosongkan dulu src-nya, lalu isi kembali dalam waktu sangat singkat
+    pdfViewer.src = "about:blank"; 
+    
+    setTimeout(() => {
+        pdfViewer.src = targetUrl;
+    }, 10);
+
+    // Tambahan: Scroll otomatis ke bagian atas viewer agar user tahu PDF berubah
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+                resultsDiv.appendChild(div);
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
