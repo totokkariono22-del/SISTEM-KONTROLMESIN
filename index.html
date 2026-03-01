@@ -85,7 +85,8 @@
                 `;
                 div.onclick = () => {
     const targetHalaman = item.halaman;
-    const offset = item.koordinat_y || 0;
+    // Kita buat link langsung ke file PDF
+    const pdfUrl = `manual_mobil.pdf#page=${targetHalaman}`;
     
     // Alamat tujuan lengkap
     const targetUrl = `manual_mobil.pdf#page=${targetHalaman}&view=FitH,${offset}`;
@@ -102,11 +103,14 @@
         }, 10);
     }
 };
-    console.log("Mengarahkan & mencari kata:", targetUrl);
+    console.log("Membuka PDF halaman:", targetHalaman);
 
-    // Trik agar browser mau refresh iframe:
-    // Kita kosongkan dulu src-nya, lalu isi kembali dalam waktu sangat singkat
-    pdfViewer.src = "about:blank"; 
+    // Perintah sakti untuk HP: Buka di tab baru atau aplikasi PDF
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.target = '_blank'; // Membuka tab baru
+    link.click();
+}; 
     
     setTimeout(() => {
         pdfViewer.src = targetUrl;
