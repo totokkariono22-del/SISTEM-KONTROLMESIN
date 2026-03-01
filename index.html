@@ -1,126 +1,100 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta charset="UTF-8">
-    <title>Aplikasi Perbaikan Mobil Offline</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Manual Mobil Digital</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
-        #sidebar { width: 300px; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; }
-        #viewer-container { flex-grow: 1; background: #444; }
-        input { width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; }
-        .result-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; cursor: pointer; border-radius: 4px; }
-        .result-item:hover { background: #f0f7ff; }
-        <iframe id="pdf-viewer" src="https://mozilla.github.io/pdf.js/web/viewer.html?file=https://totokkariono22-del.github.io/SISTEM-KONTROLMESIN/"></iframe>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background: #f4f7f6; color: #333; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .search-box { position: sticky; top: 10px; z-index: 100; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 15px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; outline: none; box-sizing: border-box; }
+        input:focus { border-color: #2196f3; }
+        #status-info { font-size: 12px; margin-top: 8px; text-align: center; }
+        #results { margin-top: 20px; }
+        .result-item { background: white; padding: 18px; margin-bottom: 12px; border-radius: 10px; border-left: 6px solid #2196f3; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .result-item:active { background: #e3f2fd; transform: scale(0.98); }
+        .result-item h4 { margin: 0 0 8px 0; color: #1976d2; font-size: 18px; }
+        .result-item p { margin: 0; font-size: 14px; line-height: 1.5; color: #666; }
+        mark { background: yellow; padding: 0 2px; border-radius: 2px; }
     </style>
 </head>
 <body>
 
-<div id="sidebar">
-    <h3>Pencarian Gejala</h3>
-    <input type="text" id="search-input" placeholder="Contoh: rem, radiator...">
-    <div id="results">Memuat data...</div>
+<div class="header">
+    <h2>🛠️ Asisten Bengkel</h2>
+    <p>Cari gejala atau komponen mobil</p>
 </div>
 
-<div id="viewer-container">
-    <iframe id="pdf-viewer" src="manual_mobil.pdf"></iframe>
+<div class="search-box">
+    <input type="text" id="search-input" placeholder="Ketik gejala (misal: rem bunyi, radiator)...">
+    <div id="status-info">Sedang memuat database...</div>
 </div>
+
+<div id="results"></div>
 
 <script>
-    // 3. GUNAKAN DOMContentLoaded AGAR SCRIPT JALAN SETELAH HTML SIAP
-    document.addEventListener('DOMContentLoaded', function() {
-        let fuse;
-        const searchInput = document.getElementById('search-input');
-        const resultsDiv = document.getElementById('results');
-        const pdfViewer = document.getElementById('pdf-viewer');
+    let fuse;
+    const searchInput = document.getElementById('search-input');
+    const resultsDiv = document.getElementById('results');
+    const statusInfo = document.getElementById('status-info');
 
-        console.log("Memulai pemuatan data...");
-
-        fetch('data_perbaikan.json')
-            .then(res => res.json())
-            .then(data => {
-                console.log("Data berhasil dimuat. Jumlah:", data.length);
-                
-                // Cek apakah Fuse sudah ter-load dari internet/lokal
-                if (typeof Fuse === 'undefined') {
-                    resultsDiv.innerHTML = "<b style='color:red'>Library Fuse.js tidak ditemukan! Cek koneksi internet atau link script.</b>";
-                    return;
-                }
-
-                fuse = new Fuse(data, {
-                    keys: ['konten'],
-                    threshold: 0.3
-                });
-                resultsDiv.innerHTML = "<small style='color:green'>Sistem siap digunakan.</small>";
-            })
-            .catch(err => {
-                console.error("Error fetch:", err);
-                resultsDiv.innerHTML = "Gagal memuat JSON.";
+    // 1. Ambil Data JSON
+    fetch('data_perbaikan.json')
+        .then(res => res.json())
+        .then(data => {
+            fuse = new Fuse(data, {
+                keys: ['konten'],
+                threshold: 0.3,
+                minMatchCharLength: 2
             });
+            statusInfo.innerHTML = "✅ <span style='color:green'>Database Siap (3000+ Paragraf)</span>";
+        })
+        .catch(err => {
+            statusInfo.innerHTML = "❌ <span style='color:red'>Gagal memuat data!</span>";
+            console.error(err);
+        });
 
-        searchInput.addEventListener('input', () => {
-            if (!fuse) return;
-            const query = searchInput.value;
-            const results = fuse.search(query);
-            
+    // 2. Fungsi Pencarian
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value;
+        if (!fuse || query.length < 2) {
             resultsDiv.innerHTML = '';
-            results.forEach(res => {
-                const item = res.item;
-                const query = searchInput.value;
-                const div = document.createElement('div');
-                div.className = 'result-item';
+            return;
+        }
 
-                // Membuat fungsi untuk mewarnai teks di sidebar
-                const highlightedText = item.konten.substring(0, 100).replace(
-                    new RegExp(query, 'gi'), 
-                   (match) => `<mark style="background: yellow; font-weight: bold;">${match}</mark>`
-        );
-                div.innerHTML = `
-                    <strong>Hal ${item.halaman}</strong><br>
-                    <small>${highlightedText}...</small>
-                `;
-                div.onclick = () => {
-    const targetHalaman = item.halaman;
-    // Kita buat link langsung ke file PDF
-    const pdfUrl = `manual_mobil.pdf#page=${targetHalaman}`;
-    
-    // Alamat tujuan lengkap
-    const targetUrl = `manual_mobil.pdf#page=${targetHalaman}&view=FitH,${offset}`;
-    // Cek apakah user pakai HP atau Laptop
-    if (window.innerWidth < 768) {
-        // Jika di HP, buka di tab baru langsung ke halamannya
-        window.open(urlLengkap, '_blank');
-    } else {
-        // Jika di Laptop, tetap tampilkan di iframe samping
-        const viewer = document.getElementById('pdf-viewer');
-        viewer.src = ""https://docs.google.com/viewer?url=https://totokkariono22-del.github.io/SISTEM-KONTROLMESIN/&embedded=true""; 
-        setTimeout(() => {
-            viewer.src = "https://totokkariono22-del.github.io/SISTEM-KONTROLMESIN/manual_mobil.pdf";
-        }, 10);
-    }
-};
-    console.log("Membuka PDF halaman:", targetHalaman);
+        const results = fuse.search(query);
+        resultsDiv.innerHTML = '';
 
-    // Perintah sakti untuk HP: Buka di tab baru atau aplikasi PDF
-    const link = document.createElement('a');
-    link.href = pdfUrl;
-    link.target = '_blank'; // Membuka tab baru
-    link.click();
-}; 
-    
-    setTimeout(() => {
-        pdfViewer.src = targetUrl;
-    }, 10);
+        if (results.length === 0) {
+            resultsDiv.innerHTML = '<p style="text-align:center">Tidak ditemukan hasil.</p>';
+            return;
+        }
 
-    // Tambahan: Scroll otomatis ke bagian atas viewer agar user tahu PDF berubah
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-                resultsDiv.appendChild(div);
-            });
+        results.slice(0, 20).forEach(res => { // Batasi 20 hasil agar tidak berat
+            const item = res.item;
+            const div = document.createElement('div');
+            div.className = 'result-item';
+            
+            // Highlight kata kunci di tampilan
+            const regex = new RegExp(`(${query})`, 'gi');
+            const teksPendek = item.konten.substring(0, 120).replace(regex, '<mark>$1</mark>');
+            
+            div.innerHTML = `
+                <h4>Halaman ${item.halaman}</h4>
+                <p>${teksPendek}...</p>
+                <div style="margin-top:10px; font-weight:bold; color:#2196f3; font-size:12px;">TAP UNTUK BUKA PDF ➜</div>
+            `;
+            
+            // 3. Fungsi Buka PDF (Paling Aman untuk Android)
+            div.onclick = () => {
+                // Link langsung ke file PDF dengan parameter halaman
+                const pdfUrl = `manual_mobil.pdf#page=${item.halaman}`;
+                window.open(pdfUrl, '_blank');
+            };
+            
+            resultsDiv.appendChild(div);
         });
     });
 </script>
